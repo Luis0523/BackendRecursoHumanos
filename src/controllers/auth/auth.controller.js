@@ -18,6 +18,7 @@ const registro = async (req, res) => {
         }
 
         // Buscar el rol
+        console.log('EL ROL ES:', rol);
         const rolObj = await Rol.findOne({ where: { nombre: rol || 'candidato' } });
         if (!rolObj) {
             return ResponseUtil.error(res, 'Rol no válido', 400);
