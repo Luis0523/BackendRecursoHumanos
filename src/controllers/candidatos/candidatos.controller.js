@@ -2,6 +2,7 @@ const { Candidato, Usuario, Postulacion } = require('../../models');
 const ResponseUtil = require('../../utils/response.util');
 const { handleSequelizeError } = require('../../utils/errors.util');
 const { Op } = require('sequelize');
+const { uploadFile, generateUniqueFileName, deleteFile, extractFileNameFromUrl } = require('../../utils/firebase.util');
 
 /**
  * Obtener perfil de candidato
@@ -136,9 +137,110 @@ const buscarCandidatos = async (req, res) => {
     }
 };
 
+/**
+ * Subir o actualizar CV del candidato
+ * POST /api/candidatos/cv
+ */
+const subirCV = async (req, res) => {
+    try {
+        // Verificar que el usuario es un candidato
+        const candidato = await Candidato.findOne({ where: { id_usuario: req.userId } });
+
+        if (!candidato) {
+            return ResponseUtil.notFound(res, 'No tienes un perfil de candidato');
+        }
+
+        // El archivo viene del middleware multer
+        const file = req.file;
+
+        if (!file) {
+            return ResponseUtil.badRequest(res, 'No se proporcionó ningún archivo PDF');
+        }
+
+        // Si ya tenía un CV, eliminar el anterior
+        if (candidato.cv_url) {
+            try {
+                const oldFileName = extractFileNameFromUrl(candidato.cv_url);
+                await deleteFile(oldFileName);
+                console.log('CV anterior eliminado:', oldFileName);
+            } catch (deleteError) {
+                console.error('Error al eliminar CV anterior:', deleteError);
+                // No fallar si no se puede eliminar el anterior
+            }
+        }
+
+        // Generar nombre único en carpeta 'cvs'
+        const fileName = generateUniqueFileName(file.originalname, 'cvs');
+
+        console.log('Subiendo CV:', fileName);
+
+        // Subir a Firebase Storage
+        const uploadResult = await uploadFile(
+            file.buffer,
+            fileName,
+            file.mimetype
+        );
+
+        // Actualizar el campo cv_url en la base de datos
+        candidato.cv_url = uploadResult.url;
+        await candidato.save();
+
+        console.log('CV subido exitosamente para candidato:', candidato.id);
+
+        return ResponseUtil.success(res, {
+            cv_url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            size: uploadResult.size,
+            originalName: file.originalname
+        }, 'CV subido exitosamente');
+
+    } catch (error) {
+        console.error('Error al subir CV:', error);
+        return ResponseUtil.serverError(res, 'Error al subir CV', error);
+    }
+};
+
+/**
+ * Eliminar CV del candidato
+ * DELETE /api/candidatos/cv
+ */
+const eliminarCV = async (req, res) => {
+    try {
+        const candidato = await Candidato.findOne({ where: { id_usuario: req.userId } });
+
+        if (!candidato) {
+            return ResponseUtil.notFound(res, 'No tienes un perfil de candidato');
+        }
+
+        if (!candidato.cv_url) {
+            return ResponseUtil.badRequest(res, 'No tienes un CV cargado');
+        }
+
+        // Extraer nombre del archivo de la URL
+        const fileName = extractFileNameFromUrl(candidato.cv_url);
+
+        // Eliminar de Firebase Storage
+        await deleteFile(fileName);
+
+        // Actualizar BD
+        candidato.cv_url = null;
+        await candidato.save();
+
+        console.log('CV eliminado exitosamente para candidato:', candidato.id);
+
+        return ResponseUtil.success(res, null, 'CV eliminado exitosamente');
+
+    } catch (error) {
+        console.error('Error al eliminar CV:', error);
+        return ResponseUtil.serverError(res, 'Error al eliminar CV', error);
+    }
+};
+
 module.exports = {
     obtenerCandidatoPorId,
     actualizarCandidato,
     miPerfil,
-    buscarCandidatos
+    buscarCandidatos,
+    subirCV,
+    eliminarCV
 };

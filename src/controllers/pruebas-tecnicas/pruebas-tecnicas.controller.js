@@ -1,6 +1,7 @@
 const { PruebaTecnica, Candidato, Vacante, Postulacion, Usuario, Empresa } = require('../../models');
 const ResponseUtil = require('../../utils/response.util');
 const { handleSequelizeError } = require('../../utils/errors.util');
+const { uploadFile, generateUniqueFileName, deleteFile, extractFileNameFromUrl } = require('../../utils/firebase.util');
 
 /**
  * Asignar prueba técnica (empresa)
@@ -188,10 +189,164 @@ const pruebasTecnicasCandidato = async (req, res) => {
     }
 };
 
+/**
+ * Subir archivo de instrucciones para una prueba técnica (empresa)
+ * POST /api/pruebas-tecnicas/:id/instrucciones
+ */
+const subirInstrucciones = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const prueba = await PruebaTecnica.findByPk(id, {
+            include: [{
+                model: Vacante,
+                as: 'vacante'
+            }]
+        });
+
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba técnica no encontrada');
+        }
+
+        // Verificar que sea la empresa que asignó la prueba
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa || prueba.vacante.id_empresa !== empresa.id) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para modificar esta prueba');
+        }
+
+        const file = req.file;
+
+        if (!file) {
+            return ResponseUtil.badRequest(res, 'Debes proporcionar un archivo PDF');
+        }
+
+        // Si ya tenía instrucciones, eliminar el archivo anterior
+        if (prueba.archivo_instrucciones_url) {
+            try {
+                const oldFileName = extractFileNameFromUrl(prueba.archivo_instrucciones_url);
+                await deleteFile(oldFileName);
+                console.log('Instrucciones anteriores eliminadas:', oldFileName);
+            } catch (deleteError) {
+                console.error('Error al eliminar archivo anterior:', deleteError);
+            }
+        }
+
+        // Generar nombre único en carpeta 'pruebas-tecnicas/instrucciones'
+        const fileName = generateUniqueFileName(file.originalname, 'pruebas-tecnicas/instrucciones');
+
+        console.log('Subiendo instrucciones:', fileName);
+
+        // Subir a Firebase Storage
+        const uploadResult = await uploadFile(
+            file.buffer,
+            fileName,
+            file.mimetype
+        );
+
+        // Actualizar prueba
+        await prueba.update({
+            archivo_instrucciones_url: uploadResult.url
+        });
+
+        console.log('Instrucciones subidas para prueba:', prueba.id);
+
+        return ResponseUtil.success(res, {
+            ...prueba.toJSON(),
+            file_info: {
+                fileName: uploadResult.fileName,
+                size: uploadResult.size,
+                originalName: file.originalname
+            }
+        }, 'Instrucciones subidas exitosamente');
+
+    } catch (error) {
+        console.error('Error al subir instrucciones:', error);
+        return ResponseUtil.serverError(res, 'Error al subir instrucciones', error);
+    }
+};
+
+/**
+ * Subir archivo de respuesta para una prueba técnica (candidato)
+ * POST /api/pruebas-tecnicas/:id/respuesta
+ */
+const subirRespuesta = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const prueba = await PruebaTecnica.findByPk(id);
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba técnica no encontrada');
+        }
+
+        // Verificar que la prueba pertenezca al candidato
+        const candidato = await Candidato.findOne({ where: { id_usuario: req.userId } });
+        if (!candidato || prueba.id_candidato !== candidato.id) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para entregar esta prueba');
+        }
+
+        if (prueba.estado === 'evaluada') {
+            return ResponseUtil.error(res, 'Esta prueba ya fue evaluada, no puedes modificar tu respuesta', 400);
+        }
+
+        const file = req.file;
+
+        if (!file) {
+            return ResponseUtil.badRequest(res, 'Debes proporcionar un archivo PDF con tu respuesta');
+        }
+
+        // Si ya tenía respuesta, eliminar el archivo anterior
+        if (prueba.archivo_respuesta_url) {
+            try {
+                const oldFileName = extractFileNameFromUrl(prueba.archivo_respuesta_url);
+                await deleteFile(oldFileName);
+                console.log('Respuesta anterior eliminada:', oldFileName);
+            } catch (deleteError) {
+                console.error('Error al eliminar archivo anterior:', deleteError);
+            }
+        }
+
+        // Generar nombre único en carpeta 'pruebas-tecnicas/respuestas'
+        const fileName = generateUniqueFileName(file.originalname, 'pruebas-tecnicas/respuestas');
+
+        console.log('Subiendo respuesta:', fileName);
+
+        // Subir a Firebase Storage
+        const uploadResult = await uploadFile(
+            file.buffer,
+            fileName,
+            file.mimetype
+        );
+
+        // Actualizar prueba
+        await prueba.update({
+            archivo_respuesta_url: uploadResult.url,
+            fecha_entrega: new Date(),
+            estado: 'entregada'
+        });
+
+        console.log('Respuesta subida para prueba:', prueba.id);
+
+        return ResponseUtil.success(res, {
+            ...prueba.toJSON(),
+            file_info: {
+                fileName: uploadResult.fileName,
+                size: uploadResult.size,
+                originalName: file.originalname
+            }
+        }, 'Respuesta entregada exitosamente');
+
+    } catch (error) {
+        console.error('Error al subir respuesta:', error);
+        return ResponseUtil.serverError(res, 'Error al subir respuesta', error);
+    }
+};
+
 module.exports = {
     asignarPruebaTecnica,
     misPruebasTecnicas,
     entregarPrueba,
     evaluarPrueba,
-    pruebasTecnicasCandidato
+    pruebasTecnicasCandidato,
+    subirInstrucciones,
+    subirRespuesta
 };

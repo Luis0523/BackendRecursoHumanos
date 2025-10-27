@@ -1,6 +1,7 @@
 const { PruebaMedica, Candidato, Postulacion, Vacante, Empresa } = require('../../models');
 const ResponseUtil = require('../../utils/response.util');
 const { handleSequelizeError } = require('../../utils/errors.util');
+const { uploadFile, generateUniqueFileName, deleteFile, extractFileNameFromUrl } = require('../../utils/firebase.util');
 
 /**
  * Solicitar prueba médica (empresa)
@@ -131,7 +132,7 @@ const actualizarResultado = async (req, res) => {
 };
 
 /**
- * Eliminar prueba médica
+ * Eliminar prueba médica (y su archivo)
  */
 const eliminarPruebaMedica = async (req, res) => {
     try {
@@ -140,6 +141,17 @@ const eliminarPruebaMedica = async (req, res) => {
         const prueba = await PruebaMedica.findByPk(id);
         if (!prueba) {
             return ResponseUtil.notFound(res, 'Prueba médica no encontrada');
+        }
+
+        // Eliminar archivo de Firebase Storage si existe
+        if (prueba.documento_resultado_url) {
+            try {
+                const fileName = extractFileNameFromUrl(prueba.documento_resultado_url);
+                await deleteFile(fileName);
+                console.log('Documento médico eliminado de Storage:', fileName);
+            } catch (deleteError) {
+                console.error('Error al eliminar archivo:', deleteError);
+            }
         }
 
         await prueba.destroy();
@@ -152,10 +164,94 @@ const eliminarPruebaMedica = async (req, res) => {
     }
 };
 
+/**
+ * Subir documento de resultado médico
+ * POST /api/pruebas-medicas/:id/resultado
+ */
+const subirResultadoMedico = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            fecha_realizacion,
+            fecha_resultado,
+            resultado,
+            observaciones,
+            restricciones,
+            medico_responsable,
+            institucion_medica,
+            valido_hasta
+        } = req.body;
+
+        const prueba = await PruebaMedica.findByPk(id);
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba médica no encontrada');
+        }
+
+        const file = req.file;
+
+        if (!file) {
+            return ResponseUtil.badRequest(res, 'Debes proporcionar un archivo PDF con el resultado médico');
+        }
+
+        // Si ya tenía resultado, eliminar el archivo anterior
+        if (prueba.documento_resultado_url) {
+            try {
+                const oldFileName = extractFileNameFromUrl(prueba.documento_resultado_url);
+                await deleteFile(oldFileName);
+                console.log('Resultado médico anterior eliminado:', oldFileName);
+            } catch (deleteError) {
+                console.error('Error al eliminar archivo anterior:', deleteError);
+            }
+        }
+
+        // Generar nombre único en carpeta 'pruebas-medicas'
+        const fileName = generateUniqueFileName(file.originalname, 'pruebas-medicas');
+
+        console.log('Subiendo resultado médico:', fileName);
+
+        // Subir a Firebase Storage
+        const uploadResult = await uploadFile(
+            file.buffer,
+            fileName,
+            file.mimetype
+        );
+
+        // Actualizar prueba con datos y archivo
+        await prueba.update({
+            fecha_realizacion,
+            fecha_resultado,
+            resultado,
+            observaciones,
+            restricciones,
+            medico_responsable,
+            institucion_medica,
+            documento_resultado_url: uploadResult.url,
+            estado: 'resultado_recibido',
+            valido_hasta
+        });
+
+        console.log('Resultado médico subido para prueba:', prueba.id);
+
+        return ResponseUtil.success(res, {
+            ...prueba.toJSON(),
+            file_info: {
+                fileName: uploadResult.fileName,
+                size: uploadResult.size,
+                originalName: file.originalname
+            }
+        }, 'Resultado médico subido exitosamente');
+
+    } catch (error) {
+        console.error('Error al subir resultado médico:', error);
+        return ResponseUtil.serverError(res, 'Error al subir resultado médico', error);
+    }
+};
+
 module.exports = {
     solicitarPruebaMedica,
     misPruebasMedicas,
     pruebasMedicasCandidato,
     actualizarResultado,
-    eliminarPruebaMedica
+    eliminarPruebaMedica,
+    subirResultadoMedico
 };

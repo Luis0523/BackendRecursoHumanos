@@ -15,6 +15,7 @@ const documentosRoutes = require('./documentos/documentos.routes');
 const evaluacionesRoutes = require('./evaluaciones/evaluaciones.routes');
 
 const adminRoutes = require('./admin/admin.routes');
+const uploadTestRoutes = require('./test/upload-test.routes');
 
 // ============================================================
 // DEFINIR RUTAS
@@ -40,7 +41,8 @@ router.get('/', (req, res) => {
             eventos: '/api/eventos',
             documentos: '/api/documentos',
             evaluaciones: '/api/evaluaciones',
-            admin: '/api/admin'
+            admin: '/api/admin',
+            test: '/api/test (endpoints de prueba para Firebase Storage)'
         }
     });
 });
@@ -58,5 +60,6 @@ router.use('/eventos', eventosRoutes);
 router.use('/documentos', documentosRoutes);
 router.use('/evaluaciones', evaluacionesRoutes);
 router.use('/admin', adminRoutes);
+router.use('/test', uploadTestRoutes);
 
 module.exports = router;

@@ -3,13 +3,14 @@ const router = express.Router();
 const documentosController = require('../../controllers/documentos/documentos.controller');
 const { verificarToken, esCandidato, esEmpresa, esAdministrador } = require('../../middlewares/auth.middleware');
 const { validateId, sanitizeInput } = require('../../middlewares/validation.middleware');
+const { uploadSinglePdf } = require('../../middlewares/multer.middleware');
 
 /**
  * @route   POST /api/documentos
- * @desc    Subir un documento
+ * @desc    Crear y subir un documento con archivo PDF
  * @access  Privado (Candidato)
  */
-router.post('/', verificarToken, esCandidato, sanitizeInput, documentosController.subirDocumento);
+router.post('/', verificarToken, esCandidato, uploadSinglePdf('documento'), documentosController.subirDocumento);
 
 /**
  * @route   GET /api/documentos/mis-documentos
@@ -41,9 +42,23 @@ router.put('/:id', verificarToken, esCandidato, validateId(), sanitizeInput, doc
 
 /**
  * @route   DELETE /api/documentos/:id
- * @desc    Eliminar documento
+ * @desc    Eliminar documento (y su archivo)
  * @access  Privado (Candidato)
  */
 router.delete('/:id', verificarToken, esCandidato, validateId(), documentosController.eliminarDocumento);
+
+/**
+ * @route   PUT /api/documentos/:id/archivo
+ * @desc    Actualizar archivo de un documento existente
+ * @access  Privado (Candidato)
+ */
+router.put('/:id/archivo', verificarToken, esCandidato, validateId(), uploadSinglePdf('documento'), documentosController.actualizarArchivoDocumento);
+
+/**
+ * @route   DELETE /api/documentos/:id/archivo
+ * @desc    Eliminar solo el archivo de un documento (mantiene el registro)
+ * @access  Privado (Candidato)
+ */
+router.delete('/:id/archivo', verificarToken, esCandidato, validateId(), documentosController.eliminarArchivoDocumento);
 
 module.exports = router;

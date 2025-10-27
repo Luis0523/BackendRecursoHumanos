@@ -3,6 +3,7 @@ const router = express.Router();
 const pruebasTecnicasController = require('../../controllers/pruebas-tecnicas/pruebas-tecnicas.controller');
 const { verificarToken, esCandidato, esEmpresa } = require('../../middlewares/auth.middleware');
 const { validateId, sanitizeInput } = require('../../middlewares/validation.middleware');
+const { uploadSinglePdf } = require('../../middlewares/multer.middleware');
 
 /**
  * @route   POST /api/pruebas-tecnicas
@@ -38,5 +39,19 @@ router.put('/:id/entregar', verificarToken, esCandidato, validateId(), sanitizeI
  * @access  Privado (Empresa)
  */
 router.put('/:id/evaluar', verificarToken, esEmpresa, validateId(), sanitizeInput, pruebasTecnicasController.evaluarPrueba);
+
+/**
+ * @route   POST /api/pruebas-tecnicas/:id/instrucciones
+ * @desc    Subir archivo de instrucciones para una prueba técnica
+ * @access  Privado (Empresa)
+ */
+router.post('/:id/instrucciones', verificarToken, esEmpresa, validateId(), uploadSinglePdf('instrucciones'), pruebasTecnicasController.subirInstrucciones);
+
+/**
+ * @route   POST /api/pruebas-tecnicas/:id/respuesta
+ * @desc    Subir archivo de respuesta para una prueba técnica
+ * @access  Privado (Candidato)
+ */
+router.post('/:id/respuesta', verificarToken, esCandidato, validateId(), uploadSinglePdf('respuesta'), pruebasTecnicasController.subirRespuesta);
 
 module.exports = router;

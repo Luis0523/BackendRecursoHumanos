@@ -3,6 +3,7 @@ const router = express.Router();
 const pruebasMedicasController = require('../../controllers/pruebas-medicas/pruebas-medicas.controller');
 const { verificarToken, esCandidato, esEmpresa } = require('../../middlewares/auth.middleware');
 const { validateId, sanitizeInput } = require('../../middlewares/validation.middleware');
+const { uploadSinglePdf } = require('../../middlewares/multer.middleware');
 
 /**
  * @route   POST /api/pruebas-medicas
@@ -34,9 +35,16 @@ router.put('/:id/resultado', verificarToken, esEmpresa, validateId(), sanitizeIn
 
 /**
  * @route   DELETE /api/pruebas-medicas/:id
- * @desc    Eliminar prueba médica
+ * @desc    Eliminar prueba médica (y su archivo)
  * @access  Privado (Empresa)
  */
 router.delete('/:id', verificarToken, esEmpresa, validateId(), pruebasMedicasController.eliminarPruebaMedica);
+
+/**
+ * @route   POST /api/pruebas-medicas/:id/resultado
+ * @desc    Subir documento de resultado médico
+ * @access  Privado (Empresa)
+ */
+router.post('/:id/resultado', verificarToken, esEmpresa, validateId(), uploadSinglePdf('resultado'), pruebasMedicasController.subirResultadoMedico);
 
 module.exports = router;
