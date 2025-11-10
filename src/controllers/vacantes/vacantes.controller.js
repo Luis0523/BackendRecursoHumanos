@@ -187,11 +187,25 @@ const eliminarVacante = async (req, res) => {
  */
 const misVacantes = async (req, res) => {
     try {
+        // Log 1: Usuario que hace la petición
+        console.log('=== INICIO misVacantes ===');
+        console.log('Usuario ID del token:', req.userId);
+
+        // Paso 1: Buscar primero a qué empresa pertenece este usuario
         const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+
+        // Log 2: Verificar si encontró la empresa
         if (!empresa) {
+            console.log('❌ No se encontró empresa asociada al usuario:', req.userId);
             return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
         }
 
+        console.log('✅ Empresa encontrada:');
+        console.log('   - ID Empresa:', empresa.id);
+        console.log('   - Nombre:', empresa.nombre_empresa);
+        console.log('   - ID Usuario:', empresa.id_usuario);
+
+        // Paso 2: Ahora buscar las vacantes de esa empresa usando el id_empresa
         const vacantes = await Vacante.findAll({
             where: { id_empresa: empresa.id },
             include: [{
@@ -202,10 +216,14 @@ const misVacantes = async (req, res) => {
             order: [['fecha_publicacion', 'DESC']]
         });
 
+        // Log 3: Resultado de vacantes
+        console.log('✅ Vacantes encontradas:', vacantes.length);
+        console.log('=== FIN misVacantes ===\n');
+
         return ResponseUtil.success(res, vacantes, 'Vacantes obtenidas exitosamente');
 
     } catch (error) {
-        console.error('Error al obtener vacantes:', error);
+        console.error('❌ Error al obtener vacantes:', error);
         return ResponseUtil.serverError(res, 'Error al obtener vacantes', error);
     }
 };

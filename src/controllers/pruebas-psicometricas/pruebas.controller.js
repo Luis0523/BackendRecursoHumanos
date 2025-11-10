@@ -71,11 +71,18 @@ const obtenerPruebas = async (req, res) => {
 
         const pruebas = await Prueba.findAll({
             where,
-            include: [{
-                model: Usuario,
-                as: 'creador',
-                attributes: ['nombre']
-            }],
+            include: [
+                {
+                    model: Usuario,
+                    as: 'creador',
+                    attributes: ['nombre']
+                },
+                {
+                    model: Pregunta,
+                    as: 'preguntas',
+                    attributes: ['id']
+                }
+            ],
             attributes: { exclude: ['creador_id'] },
             order: [['created_at', 'DESC']]
         });
@@ -401,14 +408,261 @@ const obtenerResultado = async (req, res) => {
     }
 };
 
+/**
+ * Crear una pregunta para una prueba
+ */
+const crearPregunta = async (req, res) => {
+    try {
+        const {
+            id_prueba,
+            texto_pregunta,
+            tipo_pregunta,
+            puntos,
+            puntaje_maximo,
+            opciones
+        } = req.body;
+
+        // Verificar que la prueba existe
+        const prueba = await Prueba.findByPk(id_prueba);
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba no encontrada');
+        }
+
+        // Crear pregunta
+        const pregunta = await Pregunta.create({
+            id_prueba,
+            texto_pregunta,
+            tipo_pregunta,
+            puntaje_maximo: puntaje_maximo || puntos || 1,
+            orden: await Pregunta.count({ where: { id_prueba } }) + 1,
+            es_obligatoria: true
+        });
+
+        // Crear opciones si aplica
+        if (opciones && opciones.length > 0) {
+            const opcionesData = opciones.map((opcion, index) => ({
+                id_pregunta: pregunta.id,
+                texto_opcion: opcion.texto_opcion,
+                es_correcta: opcion.es_correcta || false,
+                puntaje: opcion.es_correcta ? (puntaje_maximo || puntos || 1) : 0,
+                orden: index + 1
+            }));
+
+            await OpcionRespuesta.bulkCreate(opcionesData);
+        }
+
+        // Obtener pregunta completa con opciones
+        const preguntaCompleta = await Pregunta.findByPk(pregunta.id, {
+            include: [{
+                model: OpcionRespuesta,
+                as: 'opciones'
+            }]
+        });
+
+        return ResponseUtil.created(res, preguntaCompleta, 'Pregunta creada exitosamente');
+
+    } catch (error) {
+        console.error('Error al crear pregunta:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Actualizar una pregunta existente
+ */
+const actualizarPregunta = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            texto_pregunta,
+            tipo_pregunta,
+            puntos,
+            puntaje_maximo,
+            opciones
+        } = req.body;
+
+        const pregunta = await Pregunta.findByPk(id);
+        if (!pregunta) {
+            return ResponseUtil.notFound(res, 'Pregunta no encontrada');
+        }
+
+        // Actualizar pregunta
+        await pregunta.update({
+            texto_pregunta,
+            tipo_pregunta,
+            puntaje_maximo: puntaje_maximo || puntos || pregunta.puntaje_maximo
+        });
+
+        // Actualizar opciones si aplica
+        if (opciones && opciones.length > 0) {
+            // Eliminar opciones anteriores
+            await OpcionRespuesta.destroy({ where: { id_pregunta: id } });
+
+            // Crear nuevas opciones
+            const opcionesData = opciones.map((opcion, index) => ({
+                id_pregunta: pregunta.id,
+                texto_opcion: opcion.texto_opcion,
+                es_correcta: opcion.es_correcta || false,
+                puntaje: opcion.es_correcta ? (puntaje_maximo || puntos || 1) : 0,
+                orden: index + 1
+            }));
+
+            await OpcionRespuesta.bulkCreate(opcionesData);
+        }
+
+        // Obtener pregunta completa con opciones
+        const preguntaCompleta = await Pregunta.findByPk(pregunta.id, {
+            include: [{
+                model: OpcionRespuesta,
+                as: 'opciones'
+            }]
+        });
+
+        return ResponseUtil.success(res, preguntaCompleta, 'Pregunta actualizada exitosamente');
+
+    } catch (error) {
+        console.error('Error al actualizar pregunta:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Eliminar una pregunta
+ */
+const eliminarPregunta = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const pregunta = await Pregunta.findByPk(id);
+        if (!pregunta) {
+            return ResponseUtil.notFound(res, 'Pregunta no encontrada');
+        }
+
+        // Eliminar opciones asociadas primero
+        await OpcionRespuesta.destroy({ where: { id_pregunta: id } });
+
+        // Eliminar pregunta
+        await pregunta.destroy();
+
+        return ResponseUtil.success(res, null, 'Pregunta eliminada exitosamente');
+
+    } catch (error) {
+        console.error('Error al eliminar pregunta:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Actualizar una prueba existente
+ */
+const actualizarPrueba = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            nombre,
+            descripcion,
+            tipo,
+            categoria,
+            duracion_minutos,
+            instrucciones,
+            puntaje_minimo_aprobacion,
+            estado,
+            es_publica
+        } = req.body;
+
+        const prueba = await Prueba.findByPk(id);
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba no encontrada');
+        }
+
+        // Verificar permisos
+        if (prueba.creador_id !== req.userId) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para modificar esta prueba');
+        }
+
+        await prueba.update({
+            nombre,
+            descripcion,
+            tipo,
+            categoria,
+            duracion_minutos,
+            instrucciones,
+            puntaje_minimo_aprobacion,
+            estado,
+            es_publica
+        });
+
+        return ResponseUtil.success(res, prueba, 'Prueba actualizada exitosamente');
+
+    } catch (error) {
+        console.error('Error al actualizar prueba:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Eliminar una prueba
+ */
+const eliminarPrueba = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const prueba = await Prueba.findByPk(id);
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba no encontrada');
+        }
+
+        // Verificar permisos
+        if (prueba.creador_id !== req.userId) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para eliminar esta prueba');
+        }
+
+        // Verificar si tiene asignaciones
+        const asignaciones = await AsignacionPrueba.count({ where: { id_prueba: id } });
+        if (asignaciones > 0) {
+            return ResponseUtil.error(res, 'No se puede eliminar la prueba porque tiene asignaciones activas', 409);
+        }
+
+        // Obtener preguntas
+        const preguntas = await Pregunta.findAll({ where: { id_prueba: id } });
+
+        // Eliminar opciones de todas las preguntas
+        for (const pregunta of preguntas) {
+            await OpcionRespuesta.destroy({ where: { id_pregunta: pregunta.id } });
+        }
+
+        // Eliminar preguntas
+        await Pregunta.destroy({ where: { id_prueba: id } });
+
+        // Eliminar prueba
+        await prueba.destroy();
+
+        return ResponseUtil.success(res, null, 'Prueba eliminada exitosamente');
+
+    } catch (error) {
+        console.error('Error al eliminar prueba:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
 module.exports = {
     crearPrueba,
     obtenerPruebas,
     obtenerPruebaCompleta,
+    actualizarPrueba,
+    eliminarPrueba,
     asignarPrueba,
     misPruebasAsignadas,
     iniciarPrueba,
     guardarRespuesta,
     finalizarPrueba,
-    obtenerResultado
+    obtenerResultado,
+    crearPregunta,
+    actualizarPregunta,
+    eliminarPregunta
 };

@@ -78,7 +78,9 @@ const registro = async (req, res) => {
  */
 const login = async (req, res) => {
     try {
-        const { email, contraseña } = req.body;
+        const { email, password } = req.body;
+        const contraseña = password; // Ajuste para mantener consistencia en el nombre de la variable
+        console.log(email, contraseña);
 
         // Buscar usuario con su rol
         const usuario = await Usuario.findOne({

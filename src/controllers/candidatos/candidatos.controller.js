@@ -116,7 +116,9 @@ const buscarCandidatos = async (req, res) => {
             include: [{
                 model: Usuario,
                 as: 'usuario',
-                attributes: ['nombre', 'avatar']
+                attributes: ['nombre', 'avatar'],
+                where: { id_rol: 3 },
+                required: true
             }],
             attributes: ['id', 'titulo_profesional', 'años_experiencia', 'ubicacion', 'cv_url']
         });

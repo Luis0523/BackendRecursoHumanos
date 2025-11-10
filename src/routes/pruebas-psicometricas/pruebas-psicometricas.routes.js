@@ -26,6 +26,41 @@ router.get('/', verificarToken, pruebasController.obtenerPruebas);
 router.get('/:id', verificarToken, validateId(), pruebasController.obtenerPruebaCompleta);
 
 /**
+ * @route   PUT /api/pruebas-psicometricas/:id
+ * @desc    Actualizar una prueba
+ * @access  Privado (Admin o Empresa)
+ */
+router.put('/:id', verificarToken, validateId(), sanitizeInput, pruebasController.actualizarPrueba);
+
+/**
+ * @route   DELETE /api/pruebas-psicometricas/:id
+ * @desc    Eliminar una prueba
+ * @access  Privado (Admin o Empresa)
+ */
+router.delete('/:id', verificarToken, validateId(), pruebasController.eliminarPrueba);
+
+/**
+ * @route   POST /api/pruebas-psicometricas/preguntas
+ * @desc    Crear una pregunta para una prueba
+ * @access  Privado (Admin o Empresa)
+ */
+router.post('/preguntas', verificarToken, sanitizeInput, pruebasController.crearPregunta);
+
+/**
+ * @route   PUT /api/pruebas-psicometricas/preguntas/:id
+ * @desc    Actualizar una pregunta
+ * @access  Privado (Admin o Empresa)
+ */
+router.put('/preguntas/:id', verificarToken, validateId(), sanitizeInput, pruebasController.actualizarPregunta);
+
+/**
+ * @route   DELETE /api/pruebas-psicometricas/preguntas/:id
+ * @desc    Eliminar una pregunta
+ * @access  Privado (Admin o Empresa)
+ */
+router.delete('/preguntas/:id', verificarToken, validateId(), pruebasController.eliminarPregunta);
+
+/**
  * @route   POST /api/pruebas-psicometricas/asignar
  * @desc    Asignar prueba a un candidato
  * @access  Privado (Empresa)
