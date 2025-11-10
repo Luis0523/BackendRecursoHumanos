@@ -22,18 +22,59 @@ router.get('/', vacantesController.obtenerVacantes);
 router.get('/mis-vacantes', verificarToken, esEmpresa, vacantesController.misVacantes);
 
 /**
- * @route   GET /api/vacantes/:id
- * @desc    Obtener una vacante por ID
- * @access  Público
- */
-router.get('/:id', validateId(), vacantesController.obtenerVacantePorId);
-
-/**
  * @route   POST /api/vacantes
  * @desc    Crear nueva vacante
  * @access  Privado (Empresa)
  */
 router.post('/', verificarToken, esEmpresa, sanitizeInput, vacantesController.crearVacante);
+
+// ==================== RUTAS DE POSTULACIONES ====================
+// IMPORTANTE: Estas deben ir ANTES de las rutas con parámetros dinámicos (:id)
+
+/**
+ * @route   POST /api/vacantes/postularse
+ * @desc    Postularse a una vacante
+ * @access  Privado (Candidato)
+ */
+router.post('/postularse', verificarToken, esCandidato, sanitizeInput, postulacionesController.postularse);
+
+/**
+ * @route   GET /api/vacantes/mis-postulaciones
+ * @desc    Obtener mis postulaciones
+ * @access  Privado (Candidato)
+ */
+router.get('/mis-postulaciones', verificarToken, esCandidato, postulacionesController.misPostulaciones);
+
+/**
+ * @route   GET /api/vacantes/postulaciones
+ * @desc    Obtener todas las postulaciones de la empresa
+ * @access  Privado (Empresa)
+ */
+router.get('/postulaciones', verificarToken, esEmpresa, postulacionesController.todasPostulacionesEmpresa);
+
+/**
+ * @route   PUT /api/vacantes/postulaciones/:id
+ * @desc    Actualizar estado de una postulación
+ * @access  Privado (Empresa)
+ */
+router.put('/postulaciones/:id', verificarToken, esEmpresa, validateId(), sanitizeInput, postulacionesController.actualizarEstadoPostulacion);
+
+/**
+ * @route   DELETE /api/vacantes/postulaciones/:id
+ * @desc    Cancelar postulación
+ * @access  Privado (Candidato)
+ */
+router.delete('/postulaciones/:id', verificarToken, esCandidato, validateId(), postulacionesController.cancelarPostulacion);
+
+// ==================== RUTAS DE VACANTES CON PARÁMETROS ====================
+// IMPORTANTE: Estas deben ir DESPUÉS de las rutas literales
+
+/**
+ * @route   GET /api/vacantes/:id
+ * @desc    Obtener una vacante por ID
+ * @access  Público
+ */
+router.get('/:id', validateId(), vacantesController.obtenerVacantePorId);
 
 /**
  * @route   PUT /api/vacantes/:id
@@ -56,41 +97,11 @@ router.delete('/:id', verificarToken, esEmpresa, validateId(), vacantesControlle
  */
 router.patch('/:id/estado', verificarToken, esEmpresa, validateId(), sanitizeInput, vacantesController.cambiarEstado);
 
-// ==================== RUTAS DE POSTULACIONES ====================
-
-/**
- * @route   POST /api/vacantes/postularse
- * @desc    Postularse a una vacante
- * @access  Privado (Candidato)
- */
-router.post('/postularse', verificarToken, esCandidato, sanitizeInput, postulacionesController.postularse);
-
-/**
- * @route   GET /api/vacantes/mis-postulaciones
- * @desc    Obtener mis postulaciones
- * @access  Privado (Candidato)
- */
-router.get('/mis-postulaciones', verificarToken, esCandidato, postulacionesController.misPostulaciones);
-
 /**
  * @route   GET /api/vacantes/:id_vacante/postulaciones
- * @desc    Obtener postulaciones de una vacante
+ * @desc    Obtener postulaciones de una vacante específica
  * @access  Privado (Empresa)
  */
 router.get('/:id_vacante/postulaciones', verificarToken, esEmpresa, validateId('id_vacante'), postulacionesController.postulacionesPorVacante);
-
-/**
- * @route   PUT /api/vacantes/postulaciones/:id
- * @desc    Actualizar estado de una postulación
- * @access  Privado (Empresa)
- */
-router.put('/postulaciones/:id', verificarToken, esEmpresa, validateId(), sanitizeInput, postulacionesController.actualizarEstadoPostulacion);
-
-/**
- * @route   DELETE /api/vacantes/postulaciones/:id
- * @desc    Cancelar postulación
- * @access  Privado (Candidato)
- */
-router.delete('/postulaciones/:id', verificarToken, esCandidato, validateId(), postulacionesController.cancelarPostulacion);
 
 module.exports = router;

@@ -18,26 +18,8 @@ router.post('/', verificarToken, sanitizeInput, pruebasController.crearPrueba);
  */
 router.get('/', verificarToken, pruebasController.obtenerPruebas);
 
-/**
- * @route   GET /api/pruebas-psicometricas/:id
- * @desc    Obtener una prueba completa con preguntas
- * @access  Privado
- */
-router.get('/:id', verificarToken, validateId(), pruebasController.obtenerPruebaCompleta);
-
-/**
- * @route   PUT /api/pruebas-psicometricas/:id
- * @desc    Actualizar una prueba
- * @access  Privado (Admin o Empresa)
- */
-router.put('/:id', verificarToken, validateId(), sanitizeInput, pruebasController.actualizarPrueba);
-
-/**
- * @route   DELETE /api/pruebas-psicometricas/:id
- * @desc    Eliminar una prueba
- * @access  Privado (Admin o Empresa)
- */
-router.delete('/:id', verificarToken, validateId(), pruebasController.eliminarPrueba);
+// ==================== RUTAS ESPECÍFICAS (LITERALES) ====================
+// IMPORTANTE: Estas deben ir ANTES de las rutas con parámetros dinámicos (:id)
 
 /**
  * @route   POST /api/pruebas-psicometricas/preguntas
@@ -75,6 +57,13 @@ router.post('/asignar', verificarToken, esEmpresa, sanitizeInput, pruebasControl
 router.get('/mis-asignaciones', verificarToken, esCandidato, pruebasController.misPruebasAsignadas);
 
 /**
+ * @route   GET /api/pruebas-psicometricas/asignacion/:id_asignacion
+ * @desc    Obtener una asignación completa con preguntas para realizarla
+ * @access  Privado (Candidato)
+ */
+router.get('/asignacion/:id_asignacion', verificarToken, esCandidato, validateId('id_asignacion'), pruebasController.obtenerAsignacionCompleta);
+
+/**
  * @route   POST /api/pruebas-psicometricas/iniciar/:id_asignacion
  * @desc    Iniciar una prueba
  * @access  Privado (Candidato)
@@ -101,5 +90,29 @@ router.post('/finalizar/:id_asignacion', verificarToken, esCandidato, validateId
  * @access  Privado
  */
 router.get('/resultado/:id_asignacion', verificarToken, validateId('id_asignacion'), pruebasController.obtenerResultado);
+
+// ==================== RUTAS CON PARÁMETROS DINÁMICOS ====================
+// IMPORTANTE: Estas deben ir DESPUÉS de las rutas literales
+
+/**
+ * @route   GET /api/pruebas-psicometricas/:id
+ * @desc    Obtener una prueba completa con preguntas
+ * @access  Privado
+ */
+router.get('/:id', verificarToken, validateId(), pruebasController.obtenerPruebaCompleta);
+
+/**
+ * @route   PUT /api/pruebas-psicometricas/:id
+ * @desc    Actualizar una prueba
+ * @access  Privado (Admin o Empresa)
+ */
+router.put('/:id', verificarToken, validateId(), sanitizeInput, pruebasController.actualizarPrueba);
+
+/**
+ * @route   DELETE /api/pruebas-psicometricas/:id
+ * @desc    Eliminar una prueba
+ * @access  Privado (Admin o Empresa)
+ */
+router.delete('/:id', verificarToken, validateId(), pruebasController.eliminarPrueba);
 
 module.exports = router;

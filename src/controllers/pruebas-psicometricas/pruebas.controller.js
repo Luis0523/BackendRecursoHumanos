@@ -218,6 +218,62 @@ const misPruebasAsignadas = async (req, res) => {
 };
 
 /**
+ * Obtener una asignación específica con todas sus preguntas para realizarla
+ */
+const obtenerAsignacionCompleta = async (req, res) => {
+    try {
+        const { id_asignacion } = req.params;
+
+        const asignacion = await AsignacionPrueba.findByPk(id_asignacion, {
+            include: [
+                {
+                    model: Prueba,
+                    as: 'prueba',
+                    include: [
+                        {
+                            model: Pregunta,
+                            as: 'preguntas',
+                            include: [
+                                {
+                                    model: OpcionRespuesta,
+                                    as: 'opciones',
+                                    attributes: ['id', 'texto', 'orden']
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    attributes: ['id', 'titulo']
+                }
+            ],
+            order: [
+                [{ model: Prueba, as: 'prueba' }, { model: Pregunta, as: 'preguntas' }, 'orden', 'ASC'],
+                [{ model: Prueba, as: 'prueba' }, { model: Pregunta, as: 'preguntas' }, { model: OpcionRespuesta, as: 'opciones' }, 'orden', 'ASC']
+            ]
+        });
+
+        if (!asignacion) {
+            return ResponseUtil.notFound(res, 'Asignación no encontrada');
+        }
+
+        // Verificar que pertenezca al candidato
+        const candidato = await Candidato.findOne({ where: { id_usuario: req.userId } });
+        if (!candidato || asignacion.id_candidato !== candidato.id) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para acceder a esta prueba');
+        }
+
+        return ResponseUtil.success(res, asignacion, 'Asignación obtenida exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener asignación:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener asignación', error);
+    }
+};
+
+/**
  * Iniciar una prueba (candidato)
  */
 const iniciarPrueba = async (req, res) => {
@@ -658,6 +714,7 @@ module.exports = {
     eliminarPrueba,
     asignarPrueba,
     misPruebasAsignadas,
+    obtenerAsignacionCompleta,
     iniciarPrueba,
     guardarRespuesta,
     finalizarPrueba,

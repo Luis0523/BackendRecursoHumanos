@@ -9,7 +9,8 @@ const { handleSequelizeError, NotFoundError, BadRequestError } = require('../../
  */
 const registro = async (req, res) => {
     try {
-        const { nombre, email, contraseña, telefono, rol } = req.body;
+        const { nombre, email, password, telefono, ubicacion, rol_id, empresa } = req.body;
+        const contraseña = password; // Ajuste para mantener consistencia en el nombre de la variable
 
         // Verificar si el email ya existe
         const usuarioExistente = await Usuario.findOne({ where: { email } });
@@ -17,9 +18,14 @@ const registro = async (req, res) => {
             return ResponseUtil.error(res, 'El email ya está registrado', 409);
         }
 
-        // Buscar el rol
-        console.log('EL ROL ES:', rol);
-        const rolObj = await Rol.findOne({ where: { nombre: rol || 'candidato' } });
+        // Validar que la contraseña no esté vacía
+        if (!contraseña) {
+            return ResponseUtil.error(res, 'La contraseña es requerida', 400);
+        }
+
+        // Buscar el rol por ID
+        console.log('EL ROL ID ES:', rol_id);
+        const rolObj = await Rol.findByPk(rol_id);
         if (!rolObj) {
             return ResponseUtil.error(res, 'Rol no válido', 400);
         }
@@ -38,15 +44,32 @@ const registro = async (req, res) => {
         });
 
         // Crear perfil según el rol
-        if (rol === 'empresa') {
-            await Empresa.create({
+        // Rol ID 2 = Empresa, Rol ID 3 = Candidato
+        if (rolObj.nombre === 'empresa' || rol_id === 2) {
+            const empresaData = {
                 id_usuario: nuevoUsuario.id,
-                nombre_empresa: req.body.nombre_empresa || nombre
-            });
-        } else if (rol === 'candidato' || !rol) {
-            await Candidato.create({
+                nombre_empresa: (empresa && empresa.razon_social) || nombre
+            };
+
+            // Agregar campos opcionales si existen
+            if (ubicacion) empresaData.ubicacion = ubicacion;
+            if (empresa) {
+                if (empresa.nit) empresaData.rfc_nit = empresa.nit;
+                if (empresa.sector) empresaData.sector = empresa.sector;
+                if (empresa.sitio_web) empresaData.sitio_web = empresa.sitio_web;
+                if (empresa.descripcion) empresaData.descripcion = empresa.descripcion;
+            }
+
+            await Empresa.create(empresaData);
+        } else if (rolObj.nombre === 'candidato' || rol_id === 3) {
+            const candidatoData = {
                 id_usuario: nuevoUsuario.id
-            });
+            };
+
+            // Agregar ubicación si existe
+            if (ubicacion) candidatoData.ubicacion = ubicacion;
+
+            await Candidato.create(candidatoData);
         }
 
         // Generar token

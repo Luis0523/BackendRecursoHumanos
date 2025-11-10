@@ -84,6 +84,47 @@ const misPostulaciones = async (req, res) => {
 };
 
 /**
+ * Obtener todas las postulaciones de la empresa
+ */
+const todasPostulacionesEmpresa = async (req, res) => {
+    try {
+        // Verificar que tiene una empresa asociada
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa) {
+            return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
+        }
+
+        // Obtener todas las postulaciones de las vacantes de esta empresa
+        const postulaciones = await Postulacion.findAll({
+            include: [
+                {
+                    model: Candidato,
+                    as: 'candidato',
+                    include: [{
+                        model: Usuario,
+                        as: 'usuario',
+                        attributes: ['id', 'nombre', 'email', 'telefono']
+                    }]
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    where: { id_empresa: empresa.id },
+                    attributes: ['id', 'titulo', 'ubicacion', 'estado']
+                }
+            ],
+            order: [['fecha_postulacion', 'DESC']]
+        });
+
+        return ResponseUtil.success(res, postulaciones, 'Postulaciones obtenidas exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener postulaciones:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener postulaciones', error);
+    }
+};
+
+/**
  * Obtener postulaciones de una vacante (empresa)
  */
 const postulacionesPorVacante = async (req, res) => {
@@ -199,6 +240,7 @@ const cancelarPostulacion = async (req, res) => {
 module.exports = {
     postularse,
     misPostulaciones,
+    todasPostulacionesEmpresa,
     postulacionesPorVacante,
     actualizarEstadoPostulacion,
     cancelarPostulacion
