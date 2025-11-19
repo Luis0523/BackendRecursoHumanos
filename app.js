@@ -9,17 +9,42 @@ const app = express();
 // ==================== CONFIGURACIÓN DE CORS ====================
 // Configurar CORS para permitir peticiones desde el frontend
 const corsOptions = {
-    origin: [
-        'http://localhost:5500',
-        'http://127.0.0.1:5500',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5501'
-    ],
+    origin: function (origin, callback) {
+        // Permitir requests sin origin (como Postman, aplicaciones móviles, etc.)
+        if (!origin) return callback(null, true);
+        
+        // Lista blanca de orígenes para desarrollo
+        const allowedOrigins = [
+            'http://localhost:5500',
+            'http://127.0.0.1:5500',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:5501',
+            'http://localhost:5501'
+        ];
+        
+        // Si hay una variable de entorno con la URL del frontend en producción, agregarla
+        if (process.env.FRONTEND_URL) {
+            allowedOrigins.push(process.env.FRONTEND_URL);
+        }
+        
+        // Si estamos en producción, permitir cualquier origen (Railway, Vercel, Netlify, etc.)
+        if (process.env.NODE_ENV === 'production') {
+            return callback(null, true);
+        }
+        
+        // En desarrollo, verificar lista blanca pero ser permisivo
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            // Permitir de todas formas en desarrollo para facilitar testing
+            callback(null, true);
+        }
+    },
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
 app.use(cors(corsOptions));
@@ -44,10 +69,13 @@ app.get('/health', (req, res) => {
 sequelize.sync({ alter: false })
     .then(() => {
         const PORT = process.env.PORT || 5000;
-        app.listen(PORT, () => {
-            console.log('🚀 Servidor corriendo en http://localhost:' + PORT);
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log('🚀 Servidor corriendo en puerto:', PORT);
             console.log('✅ Base de datos conectada');
-            console.log('🌐 CORS habilitado para:', corsOptions.origin);
+            console.log('🌐 CORS habilitado - Modo:', process.env.NODE_ENV || 'development');
+            if (process.env.NODE_ENV === 'production') {
+                console.log('🔓 Permitiendo todos los orígenes (producción)');
+            }
         });
     })
     .catch((err) => {

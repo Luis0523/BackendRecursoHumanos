@@ -8,8 +8,17 @@ const initializeFirebase = () => {
   if (firebaseInitialized) return;
 
   try {
-    // Cargar credenciales desde archivo JSON
-    const serviceAccount = require('../../firebase-credentials.json');
+    let serviceAccount;
+    
+    // Intentar cargar credenciales desde variable de entorno primero (Railway)
+    if (process.env.FIREBASE_CREDENTIALS) {
+      console.log('📦 Cargando credenciales de Firebase desde variable de entorno...');
+      serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+    } else {
+      // Si no existe la variable, cargar desde archivo local (desarrollo)
+      console.log('📦 Cargando credenciales de Firebase desde archivo local...');
+      serviceAccount = require('../../firebase-credentials.json');
+    }
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),

@@ -1,15 +1,16 @@
 {
-  "name": "cliente-servidor",
+  "name": "gestion-talento-humano-backend",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon app.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["rrhh", "talento-humano", "gestion", "api"],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Backend del sistema de gestión de talento humano",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.917.0",
     "bcrypt": "^6.0.0",
@@ -28,5 +29,9 @@
   },
   "devDependencies": {
     "@types/sequelize": "^4.28.20"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   }
 }

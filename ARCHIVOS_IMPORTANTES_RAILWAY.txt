@@ -1,0 +1,54 @@
+═══════════════════════════════════════════════════════════
+  �� ARCHIVOS IMPORTANTES PARA DESPLIEGUE EN RAILWAY
+═══════════════════════════════════════════════════════════
+
+🎯 PARA EMPEZAR - LEE PRIMERO:
+═══════════════════════════════════════════════════════════
+1. README_RAILWAY.md          ⭐ Resumen ejecutivo rápido
+2. CHECKLIST_RAILWAY.md       ⭐ Lista con checkboxes paso a paso
+
+📚 DOCUMENTACIÓN COMPLETA:
+═══════════════════════════════════════════════════════════
+3. RAILWAY_DEPLOY_GUIDE.md              Guía técnica detallada
+4. RESUMEN_CONFIGURACION_RAILWAY.md     Cambios realizados
+
+📁 ARCHIVOS DE CONFIGURACIÓN:
+═══════════════════════════════════════════════════════════
+5. .env.example                         Variables de entorno
+6. railway.json                         Config de Railway
+7. package.json                         Scripts y dependencias
+8. .gitignore                          Archivos ignorados
+
+🔧 ARCHIVOS MODIFICADOS:
+═══════════════════════════════════════════════════════════
+9.  src/utils/firebase.util.js         Firebase con env vars
+10. app.js                              CORS configurado
+
+🚨 ARCHIVOS SENSIBLES (NO SUBIR A GIT):
+═══════════════════════════════════════════════════════════
+⚠️  .env                                Variables locales
+⚠️  firebase-credentials.json          Credenciales Firebase
+⚠️  node_modules/                      Dependencias
+
+📖 OTRA DOCUMENTACIÓN ÚTIL:
+═══════════════════════════════════════════════════════════
+- CONFIGURACION_FIREBASE.md            Info sobre Firebase
+- INTEGRACION_IA.md                    Info sobre OpenAI
+- ENDPOINTS_ARCHIVOS_PDF.md            API de archivos
+- PSYCHOMETRIC_TESTS_GUIDE.md          Sistema de pruebas
+- DATABASE_STRUCTURE_REPORT.md         Estructura DB
+
+═══════════════════════════════════════════════════════════
+
+⚡ COMANDO RÁPIDO:
+═══════════════════════════════════════════════════════════
+
+Ver contenido de Firebase credentials (para copiar a Railway):
+  $ cat firebase-credentials.json
+
+Generar nuevo JWT_SECRET:
+  $ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+═══════════════════════════════════════════════════════════
+✨ ¡TODO LISTO PARA RAILWAY! ✨
+═══════════════════════════════════════════════════════════
