@@ -1,5 +1,5 @@
 const admin = require('firebase-admin');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 // Inicializar Firebase Admin con las credenciales
 let firebaseInitialized = false;
@@ -49,7 +49,7 @@ const getBucket = () => {
  */
 const generateUniqueFileName = (originalName, folder = '') => {
   const extension = originalName.split('.').pop();
-  const uniqueName = `${uuidv4()}.${extension}`;
+  const uniqueName = `${crypto.randomUUID()}.${extension}`;
   return folder ? `${folder}/${uniqueName}` : uniqueName;
 };
 
@@ -69,7 +69,7 @@ const uploadFile = async (fileBuffer, fileName, contentType = 'application/pdf')
     await file.save(fileBuffer, {
       contentType: contentType,
       metadata: {
-        firebaseStorageDownloadTokens: uuidv4(), // Token para URL pública
+        firebaseStorageDownloadTokens: crypto.randomUUID(), // Token para URL pública
       },
     });
 
