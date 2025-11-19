@@ -91,6 +91,41 @@ router.post('/finalizar/:id_asignacion', verificarToken, esCandidato, validateId
  */
 router.get('/resultado/:id_asignacion', verificarToken, validateId('id_asignacion'), pruebasController.obtenerResultado);
 
+/**
+ * @route   GET /api/pruebas-psicometricas/candidato/:id_candidato/resultados
+ * @desc    Obtener todos los resultados de pruebas de un candidato (para empresa)
+ * @access  Privado (Empresa)
+ */
+router.get('/candidato/:id_candidato/resultados', verificarToken, esEmpresa, validateId('id_candidato'), pruebasController.obtenerResultadosCandidato);
+
+/**
+ * @route   GET /api/pruebas-psicometricas/asignacion/:id_asignacion/respuestas
+ * @desc    Obtener respuestas detalladas de una asignación (para empresa)
+ * @access  Privado (Empresa)
+ */
+router.get('/asignacion/:id_asignacion/respuestas', verificarToken, esEmpresa, validateId('id_asignacion'), pruebasController.obtenerRespuestasAsignacion);
+
+/**
+ * @route   POST /api/pruebas-psicometricas/evaluacion
+ * @desc    Crear evaluación de prueba psicométrica
+ * @access  Privado (Empresa)
+ */
+router.post('/evaluacion', verificarToken, esEmpresa, sanitizeInput, pruebasController.crearEvaluacion);
+
+/**
+ * @route   GET /api/pruebas-psicometricas/evaluacion/:id_asignacion
+ * @desc    Obtener evaluación de una prueba
+ * @access  Privado (Empresa)
+ */
+router.get('/evaluacion/:id_asignacion', verificarToken, esEmpresa, validateId('id_asignacion'), pruebasController.obtenerEvaluacion);
+
+/**
+ * @route   PUT /api/pruebas-psicometricas/evaluacion/:id_asignacion
+ * @desc    Actualizar evaluación de prueba psicométrica
+ * @access  Privado (Empresa)
+ */
+router.put('/evaluacion/:id_asignacion', verificarToken, esEmpresa, validateId('id_asignacion'), sanitizeInput, pruebasController.actualizarEvaluacion);
+
 // ==================== RUTAS CON PARÁMETROS DINÁMICOS ====================
 // IMPORTANTE: Estas deben ir DESPUÉS de las rutas literales
 

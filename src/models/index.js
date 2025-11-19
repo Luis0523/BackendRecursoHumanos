@@ -23,6 +23,7 @@ const OpcionRespuesta = require('./pruebas-psicometricas/opcion-respuesta.model'
 const AsignacionPrueba = require('./pruebas-psicometricas/asignacion-prueba.model');
 const RespuestaCandidato = require('./pruebas-psicometricas/respuesta-candidato.model');
 const ResultadoPrueba = require('./pruebas-psicometricas/resultado-prueba.model');
+const EvaluacionPsicometrica = require('./pruebas-psicometricas/evaluacion-psicometrica.model');
 
 // Pruebas Técnicas y Médicas
 const PruebaTecnica = require('./pruebas-tecnicas/prueba-tecnica.model');
@@ -35,6 +36,11 @@ const Evento = require('./eventos/evento.model');
 // Documentos y Evaluaciones
 const VerificacionDocumento = require('./documentos/verificacion-documento.model');
 const EvaluacionPostContratacion = require('./evaluaciones/evaluacion-post-contratacion.model');
+
+// Contrataciones
+const Contratacion = require('./contrataciones/contratacion.model');
+const EvaluacionPeriodoPrueba = require('./contrataciones/evaluacion-periodo-prueba.model');
+const EmpleadoPlanilla = require('./contrataciones/empleado-planilla.model');
 
 // Admin
 const HistorialActividad = require('./admin/historial-actividad.model');
@@ -130,6 +136,18 @@ ResultadoPrueba.belongsTo(Candidato, { foreignKey: 'id_candidato', as: 'candidat
 Prueba.hasMany(ResultadoPrueba, { foreignKey: 'id_prueba', as: 'resultados' });
 ResultadoPrueba.belongsTo(Prueba, { foreignKey: 'id_prueba', as: 'prueba' });
 
+// AsignacionPrueba <-> EvaluacionPsicometrica (1:1)
+AsignacionPrueba.hasOne(EvaluacionPsicometrica, { foreignKey: 'id_asignacion', as: 'evaluacion' });
+EvaluacionPsicometrica.belongsTo(AsignacionPrueba, { foreignKey: 'id_asignacion', as: 'asignacion' });
+
+// Candidato <-> EvaluacionPsicometrica (1:N)
+Candidato.hasMany(EvaluacionPsicometrica, { foreignKey: 'id_candidato', as: 'evaluaciones_psicometricas' });
+EvaluacionPsicometrica.belongsTo(Candidato, { foreignKey: 'id_candidato', as: 'candidato' });
+
+// Usuario <-> EvaluacionPsicometrica (1:N) - evaluador
+Usuario.hasMany(EvaluacionPsicometrica, { foreignKey: 'id_evaluador', as: 'evaluaciones_realizadas' });
+EvaluacionPsicometrica.belongsTo(Usuario, { foreignKey: 'id_evaluador', as: 'evaluador' });
+
 // ==================== MÓDULO: PRUEBAS TÉCNICAS ====================
 
 // Candidato <-> PruebaTecnica (1:N)
@@ -148,6 +166,11 @@ PruebaTecnica.belongsTo(Postulacion, { foreignKey: 'id_postulacion', as: 'postul
 Usuario.hasMany(PruebaTecnica, { foreignKey: 'evaluador_id', as: 'pruebas_tecnicas_evaluadas' });
 PruebaTecnica.belongsTo(Usuario, { foreignKey: 'evaluador_id', as: 'evaluador' });
 
+// Empresa <-> PruebaTecnica (1:N)
+// COMENTADO: PruebaTecnica no tiene id_empresa, se relaciona con Empresa a través de Vacante
+// Empresa.hasMany(PruebaTecnica, { foreignKey: 'id_empresa', as: 'pruebas_tecnicas' });
+// PruebaTecnica.belongsTo(Empresa, { foreignKey: 'id_empresa', as: 'empresa' });
+
 // ==================== MÓDULO: PRUEBAS MÉDICAS ====================
 
 // Candidato <-> PruebaMedica (1:N)
@@ -161,6 +184,11 @@ PruebaMedica.belongsTo(Postulacion, { foreignKey: 'id_postulacion', as: 'postula
 // Vacante <-> PruebaMedica (1:N)
 Vacante.hasMany(PruebaMedica, { foreignKey: 'id_vacante', as: 'pruebas_medicas' });
 PruebaMedica.belongsTo(Vacante, { foreignKey: 'id_vacante', as: 'vacante' });
+
+// Empresa <-> PruebaMedica (1:N)
+// COMENTADO: PruebaMedica no tiene id_empresa, se relaciona con Empresa a través de Vacante
+// Empresa.hasMany(PruebaMedica, { foreignKey: 'id_empresa', as: 'pruebas_medicas' });
+// PruebaMedica.belongsTo(Empresa, { foreignKey: 'id_empresa', as: 'empresa' });
 
 // ==================== MÓDULO: ENTREVISTAS ====================
 
@@ -231,8 +259,42 @@ Postulacion.hasMany(EvaluacionPostContratacion, { foreignKey: 'id_postulacion', 
 EvaluacionPostContratacion.belongsTo(Postulacion, { foreignKey: 'id_postulacion', as: 'postulacion' });
 
 // Usuario <-> EvaluacionPostContratacion (1:N) - evaluador
-Usuario.hasMany(EvaluacionPostContratacion, { foreignKey: 'evaluador_id', as: 'evaluaciones_realizadas' });
+Usuario.hasMany(EvaluacionPostContratacion, { foreignKey: 'evaluador_id', as: 'evaluaciones_post_contratacion_realizadas' });
 EvaluacionPostContratacion.belongsTo(Usuario, { foreignKey: 'evaluador_id', as: 'evaluador' });
+
+// ==================== MÓDULO: CONTRATACIONES ====================
+
+// Empresa <-> Contratacion (1:N)
+Empresa.hasMany(Contratacion, { foreignKey: 'id_empresa', as: 'contrataciones' });
+Contratacion.belongsTo(Empresa, { foreignKey: 'id_empresa', as: 'empresa' });
+
+// Candidato <-> Contratacion (1:N)
+Candidato.hasMany(Contratacion, { foreignKey: 'id_candidato', as: 'contrataciones' });
+Contratacion.belongsTo(Candidato, { foreignKey: 'id_candidato', as: 'candidato' });
+
+// Postulacion <-> Contratacion (1:1)
+Postulacion.hasOne(Contratacion, { foreignKey: 'id_postulacion', as: 'contratacion' });
+Contratacion.belongsTo(Postulacion, { foreignKey: 'id_postulacion', as: 'postulacion' });
+
+// Vacante <-> Contratacion (1:N)
+Vacante.hasMany(Contratacion, { foreignKey: 'id_vacante', as: 'contrataciones' });
+Contratacion.belongsTo(Vacante, { foreignKey: 'id_vacante', as: 'vacante' });
+
+// Usuario <-> Contratacion (supervisor)
+Usuario.hasMany(Contratacion, { foreignKey: 'id_supervisor', as: 'supervisados' });
+Contratacion.belongsTo(Usuario, { foreignKey: 'id_supervisor', as: 'supervisor' });
+
+// Contratacion <-> EvaluacionPeriodoPrueba (1:N)
+Contratacion.hasMany(EvaluacionPeriodoPrueba, { foreignKey: 'id_contratacion', as: 'evaluaciones' });
+EvaluacionPeriodoPrueba.belongsTo(Contratacion, { foreignKey: 'id_contratacion', as: 'contratacion' });
+
+// Usuario <-> EvaluacionPeriodoPrueba (evaluador)
+Usuario.hasMany(EvaluacionPeriodoPrueba, { foreignKey: 'evaluado_por', as: 'evaluaciones_periodo_prueba' });
+EvaluacionPeriodoPrueba.belongsTo(Usuario, { foreignKey: 'evaluado_por', as: 'evaluador' });
+
+// Contratacion <-> EmpleadoPlanilla (1:1)
+Contratacion.hasOne(EmpleadoPlanilla, { foreignKey: 'id_contratacion', as: 'planilla' });
+EmpleadoPlanilla.belongsTo(Contratacion, { foreignKey: 'id_contratacion', as: 'contratacion' });
 
 // ==================== MÓDULO: ADMIN ====================
 
@@ -270,6 +332,7 @@ module.exports = {
     AsignacionPrueba,
     RespuestaCandidato,
     ResultadoPrueba,
+    EvaluacionPsicometrica,
 
     // Pruebas Técnicas y Médicas
     PruebaTecnica,
@@ -282,6 +345,11 @@ module.exports = {
     // Documentos y Evaluaciones
     VerificacionDocumento,
     EvaluacionPostContratacion,
+
+    // Contrataciones
+    Contratacion,
+    EvaluacionPeriodoPrueba,
+    EmpleadoPlanilla,
 
     // Admin
     HistorialActividad,

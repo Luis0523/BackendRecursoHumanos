@@ -45,6 +45,62 @@ const asignarPruebaTecnica = async (req, res) => {
 };
 
 /**
+ * Obtener todas las pruebas técnicas de la empresa
+ */
+const todasPruebasTecnicas = async (req, res) => {
+    try {
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa) {
+            return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
+        }
+
+        const vacantes = await Vacante.findAll({
+            where: { id_empresa: empresa.id },
+            attributes: ['id']
+        });
+
+        const idsVacantes = vacantes.map(v => v.id);
+        const { Op } = require('sequelize');
+
+        const pruebas = await PruebaTecnica.findAll({
+            where: {
+                [Op.or]: [
+                    { id_vacante: { [Op.in]: idsVacantes } }
+                ]
+            },
+            include: [
+                {
+                    model: Candidato,
+                    as: 'candidato',
+                    include: [{
+                        model: Usuario,
+                        as: 'usuario',
+                        attributes: ['nombre', 'email']
+                    }]
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    attributes: ['titulo']
+                },
+                {
+                    model: Usuario,
+                    as: 'evaluador',
+                    attributes: ['nombre', 'email']
+                }
+            ],
+            order: [['fecha_asignacion', 'DESC']]
+        });
+
+        return ResponseUtil.success(res, pruebas, 'Pruebas técnicas obtenidas exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener pruebas técnicas:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener pruebas técnicas', error);
+    }
+};
+
+/**
  * Obtener mis pruebas técnicas (candidato)
  */
 const misPruebasTecnicas = async (req, res) => {
@@ -341,12 +397,91 @@ const subirRespuesta = async (req, res) => {
     }
 };
 
+/**
+ * Subir PDF de evaluación (empresa)
+ */
+const subirEvaluacion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { puntaje, resultado, comentarios_evaluador } = req.body;
+
+        const prueba = await PruebaTecnica.findByPk(id, {
+            include: [{
+                model: Vacante,
+                as: 'vacante'
+            }]
+        });
+
+        if (!prueba) {
+            return ResponseUtil.notFound(res, 'Prueba técnica no encontrada');
+        }
+
+        // Verificar permisos
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa || prueba.vacante.id_empresa !== empresa.id) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para evaluar esta prueba');
+        }
+
+        const file = req.file;
+        if (!file) {
+            return ResponseUtil.error(res, 'No se proporcionó archivo', 400);
+        }
+
+        // Validar que sea PDF
+        if (!file.mimetype.includes('pdf')) {
+            return ResponseUtil.error(res, 'Solo se permiten archivos PDF', 400);
+        }
+
+        // Si ya existe un archivo, eliminarlo
+        if (prueba.archivo_evaluacion_url) {
+            try {
+                const oldFileName = extractFileNameFromUrl(prueba.archivo_evaluacion_url);
+                await deleteFile(oldFileName);
+            } catch (error) {
+                console.error('Error al eliminar archivo anterior:', error);
+            }
+        }
+
+        const fileName = generateUniqueFileName(file.originalname, 'evaluaciones-tecnicas');
+        const uploadResult = await uploadFile(
+            file.buffer,
+            fileName,
+            file.mimetype
+        );
+
+        await prueba.update({
+            archivo_evaluacion_url: uploadResult.url,
+            puntaje: puntaje || prueba.puntaje,
+            resultado: resultado || prueba.resultado,
+            comentarios_evaluador: comentarios_evaluador || prueba.comentarios_evaluador,
+            fecha_evaluacion: new Date(),
+            evaluador_id: req.userId,
+            estado: 'evaluada'
+        });
+
+        return ResponseUtil.success(res, {
+            ...prueba.toJSON(),
+            file_info: {
+                fileName: uploadResult.fileName,
+                size: uploadResult.size,
+                originalName: file.originalname
+            }
+        }, 'Evaluación subida exitosamente');
+
+    } catch (error) {
+        console.error('Error al subir evaluación:', error);
+        return ResponseUtil.serverError(res, 'Error al subir evaluación', error);
+    }
+};
+
 module.exports = {
     asignarPruebaTecnica,
+    todasPruebasTecnicas,
     misPruebasTecnicas,
     entregarPrueba,
     evaluarPrueba,
     pruebasTecnicasCandidato,
     subirInstrucciones,
-    subirRespuesta
+    subirRespuesta,
+    subirEvaluacion
 };

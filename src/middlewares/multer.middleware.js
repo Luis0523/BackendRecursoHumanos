@@ -181,8 +181,76 @@ const uploadOptionalPdf = (fieldName) => {
   };
 };
 
+/**
+ * Middleware para subir archivos Excel (.xlsx, .xls)
+ * @param {string} fieldName - Nombre del campo en el formulario
+ */
+const uploadExcel = (fieldName) => {
+  // Configuración específica para Excel
+  const excelStorage = multer.memoryStorage();
+  
+  const excelFilter = (req, file, cb) => {
+    const allowedMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'application/octet-stream' // Fallback para algunos navegadores
+    ];
+    
+    const allowedExtensions = ['.xlsx', '.xls'];
+    const fileExtension = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
+
+    if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos Excel (.xlsx o .xls)'), false);
+    }
+  };
+
+  const excelUpload = multer({
+    storage: excelStorage,
+    fileFilter: excelFilter,
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB para Excel
+    },
+  });
+
+  return (req, res, next) => {
+    const singleUpload = excelUpload.single(fieldName);
+
+    singleUpload(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            message: 'El archivo Excel excede el tamaño máximo permitido de 5MB',
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Error al subir archivo: ${err.message}`,
+        });
+      } else if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message,
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No se proporcionó ningún archivo Excel',
+        });
+      }
+
+      next();
+    });
+  };
+};
+
 module.exports = {
   uploadSinglePdf,
   uploadMultiplePdfs,
   uploadOptionalPdf,
+  uploadExcel,
 };

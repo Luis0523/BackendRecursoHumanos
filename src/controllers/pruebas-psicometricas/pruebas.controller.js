@@ -198,7 +198,19 @@ const misPruebasAsignadas = async (req, res) => {
                 {
                     model: Vacante,
                     as: 'vacante',
-                    attributes: ['titulo']
+                    attributes: ['id', 'titulo'],
+                    include: [
+                        {
+                            model: Empresa,
+                            as: 'empresa',
+                            attributes: ['id', 'nombre_empresa']
+                        }
+                    ]
+                },
+                {
+                    model: Empresa,
+                    as: 'empresa',
+                    attributes: ['id', 'nombre_empresa']
                 },
                 {
                     model: ResultadoPrueba,
@@ -237,7 +249,7 @@ const obtenerAsignacionCompleta = async (req, res) => {
                                 {
                                     model: OpcionRespuesta,
                                     as: 'opciones',
-                                    attributes: ['id', 'texto', 'orden']
+                                    attributes: ['id', 'texto_opcion', 'orden']
                                 }
                             ]
                         }
@@ -396,20 +408,39 @@ const finalizarPrueba = async (req, res) => {
         // Calcular tiempo total
         const tiempo_total_segundos = Math.floor((new Date() - new Date(asignacion.fecha_inicio)) / 1000);
 
-        // Crear resultado
-        const resultado = await ResultadoPrueba.create({
-            id_asignacion,
-            id_candidato: asignacion.id_candidato,
-            id_prueba: asignacion.id_prueba,
-            puntaje_total,
-            puntaje_maximo,
-            porcentaje,
-            aprobado,
-            tiempo_total_segundos,
-            respuestas_correctas,
-            respuestas_incorrectas,
-            preguntas_sin_responder
+        // Verificar si ya existe un resultado
+        let resultado = await ResultadoPrueba.findOne({
+            where: { id_asignacion }
         });
+
+        if (resultado) {
+            // Actualizar resultado existente
+            await resultado.update({
+                puntaje_total,
+                puntaje_maximo,
+                porcentaje,
+                aprobado,
+                tiempo_total_segundos,
+                respuestas_correctas,
+                respuestas_incorrectas,
+                preguntas_sin_responder
+            });
+        } else {
+            // Crear nuevo resultado
+            resultado = await ResultadoPrueba.create({
+                id_asignacion,
+                id_candidato: asignacion.id_candidato,
+                id_prueba: asignacion.id_prueba,
+                puntaje_total,
+                puntaje_maximo,
+                porcentaje,
+                aprobado,
+                tiempo_total_segundos,
+                respuestas_correctas,
+                respuestas_incorrectas,
+                preguntas_sin_responder
+            });
+        }
 
         // Actualizar asignación
         await asignacion.update({
@@ -706,6 +737,247 @@ const eliminarPrueba = async (req, res) => {
     }
 };
 
+/**
+ * Obtener resultados de pruebas de un candidato (para empresa)
+ */
+const obtenerResultadosCandidato = async (req, res) => {
+    try {
+        const { id_candidato } = req.params;
+
+        // Verificar que la empresa tenga acceso a este candidato
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa) {
+            return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
+        }
+
+        // Obtener todas las vacantes de la empresa
+        const vacantes = await Vacante.findAll({
+            where: { id_empresa: empresa.id },
+            attributes: ['id']
+        });
+
+        const idsVacantes = vacantes.map(v => v.id);
+
+        // Obtener todas las asignaciones de pruebas del candidato relacionadas con esta empresa
+        // Ya sea directamente (id_empresa) o a través de una vacante
+        const asignaciones = await AsignacionPrueba.findAll({
+            where: { 
+                id_candidato: id_candidato,
+                [Op.or]: [
+                    { id_empresa: empresa.id },
+                    { id_vacante: { [Op.in]: idsVacantes } }
+                ]
+            },
+            include: [
+                {
+                    model: Prueba,
+                    as: 'prueba',
+                    attributes: ['id', 'nombre', 'descripcion', 'tipo', 'categoria', 'duracion_minutos']
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    attributes: ['id', 'titulo']
+                },
+                {
+                    model: ResultadoPrueba,
+                    as: 'resultado',
+                    required: false
+                }
+            ],
+            order: [['fecha_asignacion', 'DESC']]
+        });
+
+        return ResponseUtil.success(res, asignaciones, 'Resultados obtenidos exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener resultados del candidato:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener resultados', error);
+    }
+};
+
+/**
+ * Obtener respuestas detalladas de una asignación (para empresa)
+ */
+const obtenerRespuestasAsignacion = async (req, res) => {
+    try {
+        const { id_asignacion } = req.params;
+
+        const asignacion = await AsignacionPrueba.findByPk(id_asignacion, {
+            include: [
+                {
+                    model: Prueba,
+                    as: 'prueba',
+                    attributes: ['id', 'nombre', 'descripcion', 'tipo']
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    attributes: ['id', 'id_empresa']
+                }
+            ]
+        });
+
+        if (!asignacion) {
+            return ResponseUtil.notFound(res, 'Asignación no encontrada');
+        }
+
+        // Verificar que la empresa tenga acceso
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa) {
+            return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
+        }
+
+        // Verificar acceso: la empresa puede ver si la asignación tiene su id_empresa 
+        // O si la vacante pertenece a la empresa
+        const tieneAcceso = asignacion.id_empresa === empresa.id || 
+                           (asignacion.vacante && asignacion.vacante.id_empresa === empresa.id);
+
+        if (!tieneAcceso) {
+            return ResponseUtil.forbidden(res, 'No tienes permiso para ver estas respuestas');
+        }
+
+        // Obtener todas las respuestas con sus preguntas y opciones
+        const respuestas = await RespuestaCandidato.findAll({
+            where: { id_asignacion: id_asignacion },
+            include: [
+                {
+                    model: Pregunta,
+                    as: 'pregunta',
+                    attributes: ['id', 'texto_pregunta', 'tipo_pregunta', 'orden']
+                },
+                {
+                    model: OpcionRespuesta,
+                    as: 'opcion_seleccionada',
+                    attributes: ['id', 'texto_opcion'],
+                    required: false
+                }
+            ],
+            order: [[{ model: Pregunta, as: 'pregunta' }, 'orden', 'ASC']]
+        });
+
+        return ResponseUtil.success(res, {
+            asignacion,
+            respuestas
+        }, 'Respuestas obtenidas exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener respuestas:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener respuestas', error);
+    }
+};
+
+/**
+ * Crear o actualizar evaluación psicométrica
+ */
+const crearEvaluacion = async (req, res) => {
+    try {
+        const { id_asignacion, id_candidato, resultado, porcentaje_aptitud, observaciones } = req.body;
+        const EvaluacionPsicometrica = require('../../models/pruebas-psicometricas/evaluacion-psicometrica.model');
+
+        // Verificar que la asignación existe y está completada
+        const asignacion = await AsignacionPrueba.findByPk(id_asignacion);
+        if (!asignacion) {
+            return ResponseUtil.notFound(res, 'Asignación de prueba no encontrada');
+        }
+
+        if (asignacion.estado !== 'completada') {
+            return ResponseUtil.badRequest(res, 'La prueba debe estar completada para ser evaluada');
+        }
+
+        // Verificar si ya existe una evaluación
+        const evaluacionExistente = await EvaluacionPsicometrica.findOne({
+            where: { id_asignacion }
+        });
+
+        if (evaluacionExistente) {
+            return ResponseUtil.conflict(res, 'Ya existe una evaluación para esta prueba. Use PUT para actualizar');
+        }
+
+        // Crear evaluación
+        const evaluacion = await EvaluacionPsicometrica.create({
+            id_asignacion,
+            id_candidato,
+            id_evaluador: req.userId,
+            resultado,
+            porcentaje_aptitud: porcentaje_aptitud || 0,
+            observaciones,
+            fecha_evaluacion: new Date()
+        });
+
+        return ResponseUtil.created(res, evaluacion, 'Evaluación guardada exitosamente');
+
+    } catch (error) {
+        console.error('Error al crear evaluación:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Actualizar evaluación psicométrica
+ */
+const actualizarEvaluacion = async (req, res) => {
+    try {
+        const { id_asignacion } = req.params;
+        const { resultado, porcentaje_aptitud, observaciones } = req.body;
+        const EvaluacionPsicometrica = require('../../models/pruebas-psicometricas/evaluacion-psicometrica.model');
+
+        const evaluacion = await EvaluacionPsicometrica.findOne({
+            where: { id_asignacion }
+        });
+
+        if (!evaluacion) {
+            return ResponseUtil.notFound(res, 'Evaluación no encontrada');
+        }
+
+        await evaluacion.update({
+            resultado,
+            porcentaje_aptitud: porcentaje_aptitud || evaluacion.porcentaje_aptitud,
+            observaciones,
+            id_evaluador: req.userId,
+            fecha_evaluacion: new Date()
+        });
+
+        return ResponseUtil.success(res, evaluacion, 'Evaluación actualizada exitosamente');
+
+    } catch (error) {
+        console.error('Error al actualizar evaluación:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
+/**
+ * Obtener evaluación de una asignación
+ */
+const obtenerEvaluacion = async (req, res) => {
+    try {
+        const { id_asignacion } = req.params;
+        const EvaluacionPsicometrica = require('../../models/pruebas-psicometricas/evaluacion-psicometrica.model');
+
+        const evaluacion = await EvaluacionPsicometrica.findOne({
+            where: { id_asignacion },
+            include: [{
+                model: Usuario,
+                as: 'evaluador',
+                attributes: ['id', 'nombre', 'email']
+            }]
+        });
+
+        if (!evaluacion) {
+            return ResponseUtil.notFound(res, 'Evaluación no encontrada');
+        }
+
+        return ResponseUtil.success(res, evaluacion);
+
+    } catch (error) {
+        console.error('Error al obtener evaluación:', error);
+        const appError = handleSequelizeError(error);
+        return ResponseUtil.error(res, appError.message, appError.statusCode);
+    }
+};
+
 module.exports = {
     crearPrueba,
     obtenerPruebas,
@@ -721,5 +993,10 @@ module.exports = {
     obtenerResultado,
     crearPregunta,
     actualizarPregunta,
-    eliminarPregunta
+    eliminarPregunta,
+    obtenerResultadosCandidato,
+    obtenerRespuestasAsignacion,
+    crearEvaluacion,
+    actualizarEvaluacion,
+    obtenerEvaluacion
 };

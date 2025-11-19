@@ -13,6 +13,13 @@ const { uploadSinglePdf } = require('../../middlewares/multer.middleware');
 router.post('/', verificarToken, esEmpresa, sanitizeInput, pruebasTecnicasController.asignarPruebaTecnica);
 
 /**
+ * @route   GET /api/pruebas-tecnicas
+ * @desc    Obtener todas las pruebas técnicas de la empresa
+ * @access  Privado (Empresa)
+ */
+router.get('/', verificarToken, esEmpresa, pruebasTecnicasController.todasPruebasTecnicas);
+
+/**
  * @route   GET /api/pruebas-tecnicas/mis-pruebas
  * @desc    Obtener mis pruebas técnicas
  * @access  Privado (Candidato)
@@ -53,5 +60,12 @@ router.post('/:id/instrucciones', verificarToken, esEmpresa, validateId(), uploa
  * @access  Privado (Candidato)
  */
 router.post('/:id/respuesta', verificarToken, esCandidato, validateId(), uploadSinglePdf('respuesta'), pruebasTecnicasController.subirRespuesta);
+
+/**
+ * @route   POST /api/pruebas-tecnicas/:id/evaluacion
+ * @desc    Subir PDF de evaluación con resultados
+ * @access  Privado (Empresa)
+ */
+router.post('/:id/evaluacion', verificarToken, esEmpresa, validateId(), uploadSinglePdf('evaluacion'), pruebasTecnicasController.subirEvaluacion);
 
 module.exports = router;

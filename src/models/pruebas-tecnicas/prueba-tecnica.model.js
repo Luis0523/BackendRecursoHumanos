@@ -103,6 +103,11 @@ const PruebaTecnica = sequelize.define('PruebaTecnica', {
         allowNull: true,
         comment: 'Archivo que subió el candidato'
     },
+    archivo_evaluacion_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'PDF con la evaluación y resultados'
+    },
     evaluador_id: {
         type: DataTypes.INTEGER,
         allowNull: true,

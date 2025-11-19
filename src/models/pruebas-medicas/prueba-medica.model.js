@@ -62,6 +62,15 @@ const PruebaMedica = sequelize.define('PruebaMedica', {
         allowNull: true,
         comment: 'apto, no_apto, apto_con_restricciones, pendiente'
     },
+    porcentaje_aptitud: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Porcentaje de aptitud 0-100',
+        validate: {
+            min: 0,
+            max: 100
+        }
+    },
     observaciones: {
         type: DataTypes.TEXT,
         allowNull: true

@@ -32,6 +32,57 @@ const solicitarPruebaMedica = async (req, res) => {
 };
 
 /**
+ * Obtener todas las pruebas médicas de la empresa
+ */
+const todasPruebasMedicas = async (req, res) => {
+    try {
+        const empresa = await Empresa.findOne({ where: { id_usuario: req.userId } });
+        if (!empresa) {
+            return ResponseUtil.error(res, 'No tienes una empresa asociada', 403);
+        }
+
+        // Obtener todas las vacantes de la empresa para filtrar pruebas
+        const vacantes = await Vacante.findAll({
+            where: { id_empresa: empresa.id },
+            attributes: ['id']
+        });
+
+        const idsVacantes = vacantes.map(v => v.id);
+
+        const pruebas = await PruebaMedica.findAll({
+            where: {
+                [require('sequelize').Op.or]: [
+                    { id_vacante: { [require('sequelize').Op.in]: idsVacantes } }
+                ]
+            },
+            include: [
+                {
+                    model: Candidato,
+                    as: 'candidato',
+                    include: [{
+                        model: require('../../models').Usuario,
+                        as: 'usuario',
+                        attributes: ['nombre', 'email']
+                    }]
+                },
+                {
+                    model: Vacante,
+                    as: 'vacante',
+                    attributes: ['titulo']
+                }
+            ],
+            order: [['fecha_solicitud', 'DESC']]
+        });
+
+        return ResponseUtil.success(res, pruebas, 'Pruebas médicas obtenidas exitosamente');
+
+    } catch (error) {
+        console.error('Error al obtener pruebas médicas:', error);
+        return ResponseUtil.serverError(res, 'Error al obtener pruebas médicas', error);
+    }
+};
+
+/**
  * Obtener mis pruebas médicas (candidato)
  */
 const misPruebasMedicas = async (req, res) => {
@@ -96,6 +147,7 @@ const actualizarResultado = async (req, res) => {
             fecha_realizacion,
             fecha_resultado,
             resultado,
+            porcentaje_aptitud,
             observaciones,
             restricciones,
             medico_responsable,
@@ -113,6 +165,7 @@ const actualizarResultado = async (req, res) => {
             fecha_realizacion,
             fecha_resultado,
             resultado,
+            porcentaje_aptitud,
             observaciones,
             restricciones,
             medico_responsable,
@@ -249,6 +302,7 @@ const subirResultadoMedico = async (req, res) => {
 
 module.exports = {
     solicitarPruebaMedica,
+    todasPruebasMedicas,
     misPruebasMedicas,
     pruebasMedicasCandidato,
     actualizarResultado,

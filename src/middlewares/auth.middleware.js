@@ -19,13 +19,22 @@ const verificarToken = async (req, res, next) => {
         // Verificar token
         const decoded = verifyToken(token);
 
-        // Buscar usuario
+        // Buscar usuario con empresa si existe
+        const { Empresa } = require('../models');
         const usuario = await Usuario.findByPk(decoded.id, {
-            include: [{
-                model: Rol,
-                as: 'rol',
-                attributes: ['id', 'nombre', 'permisos']
-            }],
+            include: [
+                {
+                    model: Rol,
+                    as: 'rol',
+                    attributes: ['id', 'nombre', 'permisos']
+                },
+                {
+                    model: Empresa,
+                    as: 'empresa',
+                    attributes: ['id'],
+                    required: false
+                }
+            ],
             attributes: { exclude: ['contraseña'] }
         });
 
@@ -41,6 +50,11 @@ const verificarToken = async (req, res, next) => {
         req.usuario = usuario;
         req.userId = usuario.id;
         req.userRole = usuario.rol.nombre;
+        
+        // Agregar id_empresa si existe
+        if (usuario.empresa) {
+            req.usuario.id_empresa = usuario.empresa.id;
+        }
 
         next();
     } catch (error) {

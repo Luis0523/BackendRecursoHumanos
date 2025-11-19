@@ -13,6 +13,13 @@ const { uploadSinglePdf } = require('../../middlewares/multer.middleware');
 router.post('/', verificarToken, esEmpresa, sanitizeInput, pruebasMedicasController.solicitarPruebaMedica);
 
 /**
+ * @route   GET /api/pruebas-medicas
+ * @desc    Obtener todas las pruebas médicas de la empresa
+ * @access  Privado (Empresa)
+ */
+router.get('/', verificarToken, esEmpresa, pruebasMedicasController.todasPruebasMedicas);
+
+/**
  * @route   GET /api/pruebas-medicas/mis-pruebas
  * @desc    Obtener mis pruebas médicas
  * @access  Privado (Candidato)

@@ -21,8 +21,10 @@
     "multer": "^2.0.2",
     "mysql2": "^3.14.2",
     "nodemon": "^3.1.10",
+    "openai": "^6.9.1",
     "sequelize": "^6.37.7",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/sequelize": "^4.28.20"

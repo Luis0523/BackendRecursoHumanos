@@ -13,6 +13,9 @@ const entrevistasRoutes = require('./entrevistas/entrevistas.routes');
 const eventosRoutes = require('./eventos/eventos.routes');
 const documentosRoutes = require('./documentos/documentos.routes');
 const evaluacionesRoutes = require('./evaluaciones/evaluaciones.routes');
+const contratacionesRoutes = require('./contrataciones/contrataciones.routes');
+const seguimientoRoutes = require('./seguimiento.routes');
+const iaRoutes = require('./ia.routes');
 
 const adminRoutes = require('./admin/admin.routes');
 const uploadTestRoutes = require('./test/upload-test.routes');
@@ -41,6 +44,9 @@ router.get('/', (req, res) => {
             eventos: '/api/eventos',
             documentos: '/api/documentos',
             evaluaciones: '/api/evaluaciones',
+            contrataciones: '/api/contrataciones',
+            seguimiento: '/api/seguimiento',
+            ia: '/api/ia',
             admin: '/api/admin',
             test: '/api/test (endpoints de prueba para Firebase Storage)'
         }
@@ -59,6 +65,9 @@ router.use('/entrevistas', entrevistasRoutes);
 router.use('/eventos', eventosRoutes);
 router.use('/documentos', documentosRoutes);
 router.use('/evaluaciones', evaluacionesRoutes);
+router.use('/contrataciones', contratacionesRoutes);
+router.use('/seguimiento', seguimientoRoutes);
+router.use('/ia', iaRoutes);
 router.use('/admin', adminRoutes);
 router.use('/test', uploadTestRoutes);
 

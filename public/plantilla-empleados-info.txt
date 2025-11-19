@@ -1,0 +1,11 @@
+PLANTILLA PARA IMPORTAR EMPLEADOS
+====================================
+
+Columnas REQUERIDAS:
+- nombre
+- email
+- cargo
+- salario
+- fecha_inicio
+
+Formato: Excel (.xlsx o .xls)
