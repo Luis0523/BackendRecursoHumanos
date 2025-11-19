@@ -1,6 +1,6 @@
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 // Configuración del cliente S3 para Cloudflare R2
 const r2Client = new S3Client({
@@ -20,7 +20,7 @@ const r2Client = new S3Client({
  */
 const generateUniqueFileName = (originalName, prefix = '') => {
   const extension = originalName.split('.').pop();
-  const uniqueName = `${uuidv4()}.${extension}`;
+  const uniqueName = `${crypto.randomUUID()}.${extension}`;
   return prefix ? `${prefix}/${uniqueName}` : uniqueName;
 };
 
